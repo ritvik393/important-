@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Headquarter Complaint System</title>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial, Helvetica, sans-serif;
+    background:#0f172a;
+    color:white;
+}
+
+header{
+    background:#020617;
+    padding:15px;
+    text-align:center;
+    font-size:22px;
+    font-weight:bold;
+}
+
+.container{
+    display:flex;
+    justify-content:space-around;
+    margin-top:40px;
+}
+
+.box{
+    background:#1e293b;
+    padding:20px;
+    width:300px;
+    border-radius:10px;
+    box-shadow:0 0 10px black;
+}
+
+.box h3{
+    text-align:center;
+}
+
+input, button{
+    width:100%;
+    padding:10px;
+    margin-top:10px;
+    border:none;
+    border-radius:5px;
+}
+
+button{
+    background:#38bdf8;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#0ea5e9;
+}
+
+.msg{
+    margin-top:10px;
+    text-align:center;
+}
+</style>
+
+</head>
+<body>
+
+<header>
+Home Command Center (HCC)
+</header>
+
+<div class="container">
+
+<!-- HQ / COMMANDER LOGIN -->
+<div class="box">
+<h3>HQ / Commander Login</h3>
+
+<input id="loginUser" placeholder="Username">
+<input id="loginPass" type="password" placeholder="Password">
+
+<button onclick="login()">Login</button>
+
+<div class="msg" id="loginMsg"></div>
+</div>
+
+<!-- GUEST COMPLAINT -->
+<div class="box">
+<h3>Guest Complaint</h3>
+
+<input id="guestName" placeholder="Your Name">
+<input id="guestMsg" placeholder="Enter Complaint">
+
+<button onclick="sendComplaint()">Send Complaint</button>
+
+<div class="msg" id="complaintMsg"></div>
+</div>
+
+</div>
+
+<script>
+const BACKEND_URL = "http://127.0.0.1:5000";
+
+function login(){
+    fetch(BACKEND_URL + "/login",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            username:document.getElementById("loginUser").value,
+            password:document.getElementById("loginPass").value
+        })
+    })
+    .then(res=>res.json())
+    .then(data=>{
+        document.getElementById("loginMsg").innerText = data.msg;
+    });
+}
+
+function sendComplaint(){
+    fetch(BACKEND_URL + "/complaint",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            name:document.getElementById("guestName").value,
+            message:document.getElementById("guestMsg").value
+        })
+    })
+    .then(res=>res.json())
+    .then(data=>{
+        document.getElementById("complaintMsg").innerText = data.msg;
+    });
+}
+</script>
+
+</body>
+</html>
