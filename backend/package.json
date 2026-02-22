@@ -1,0 +1,14 @@
+{
+  "name": "hbce-backend",
+  "version": "1.0.0",
+  "description": "H.B.C.E backend in Node.js",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node app.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
