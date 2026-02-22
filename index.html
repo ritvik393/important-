@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>H.B.C.E Portal (Mix Code)</title>
+<style>
+:root{
+  --bg:#f3f7ff;
+  --card:#fff;
+  --primary:#1d4ed8;
+  --primary-dark:#1e3a8a;
+  --text:#0f172a;
+  --muted:#475569;
+  --border:#dbe6ff;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(90deg,var(--primary-dark),var(--primary));color:#fff;padding:18px;text-align:center}
+header small{display:block;opacity:.9}
+.container{max-width:1200px;margin:20px auto;padding:0 16px 28px;display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 8px 20px rgba(15,23,42,.06)}
+h2,h3{margin:0 0 10px}
+input,button{width:100%;padding:10px;margin:6px 0;border-radius:8px;border:1px solid #cbd5e1}
+button{background:var(--primary);color:#fff;border:none;font-weight:700;cursor:pointer}
+button:hover{background:var(--primary-dark)}
+.msg{font-size:14px;color:var(--muted);min-height:20px}
+.hidden{display:none}
+.row{display:flex;gap:8px;align-items:center}
+.captcha-box{font-weight:700;font-size:18px;letter-spacing:2px;background:#eef2ff;border:1px dashed #4f46e5;border-radius:8px;padding:10px 12px;min-width:120px;text-align:center}
+.table-wrap{max-height:280px;overflow:auto;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border:1px solid #e2e8f0;padding:6px;text-align:left}
+th{background:#eff6ff;position:sticky;top:0}
+.result-card{background:#f8fafc;padding:10px;border-radius:8px;border:1px solid #dbeafe;margin-top:8px}
+.badge{display:inline-block;font-size:12px;padding:3px 8px;border-radius:999px;background:#e0e7ff;color:#3730a3}
+</style>
+</head>
+<body>
+<header>
+  <h1>H.B.C.E - Home Board Central Exam Portal</h1>
+  <small>Mix version: manager + student in one HTML file</small>
+  <small class="badge">Manager: manager / 124421</small>
+</header>
+
+<div class="container">
+  <section class="card">
+    <h2>Manager Login</h2>
+    <input id="managerUser" placeholder="Username (manager)" />
+    <input id="managerPass" type="password" placeholder="Password" />
+    <button onclick="loginManager()">Login as Manager</button>
+    <div class="msg" id="loginMsg"></div>
+
+    <div id="managerPanel" class="hidden">
+      <hr />
+      <h3>Add / Update Student Details</h3>
+      <input id="rollNo" placeholder="Roll No" />
+      <input id="studentId" placeholder="Student ID" />
+      <input id="studentName" placeholder="Student Name" />
+      <input id="className" placeholder="Class" />
+      <input id="category" placeholder="Category" />
+      <input id="ageCategory" placeholder="Age Category" />
+      <label>Date of Birth</label>
+      <input id="dob" type="date" />
+      <button onclick="saveStudent()">Save Student</button>
+
+      <h3>Publish Exam Marks</h3>
+      <input id="marksStudentId" placeholder="Student ID" />
+      <input id="examMarks" placeholder="Exam Marks (example: 456/500)" />
+      <button onclick="publishMarks()">Update Marks</button>
+
+      <button onclick="clearAllData()" style="background:#b91c1c">Clear All Saved Data</button>
+      <div class="msg" id="managerMsg"></div>
+
+      <h3>Student Records</h3>
+      <button onclick="loadStudents()">Refresh Student List</button>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Roll No</th><th>Student ID</th><th>Name</th><th>Class</th><th>Category</th><th>Age Category</th><th>DOB</th><th>Marks</th>
+            </tr>
+          </thead>
+          <tbody id="studentTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Student Result Check</h2>
+    <input id="checkStudentId" placeholder="Student ID" />
+    <input id="checkName" placeholder="Name" />
+    <input id="checkClass" placeholder="Class" />
+    <label>Date of Birth</label>
+    <input id="checkDob" type="date" />
+
+    <div class="row">
+      <div class="captcha-box" id="captchaCode">------</div>
+      <button onclick="refreshCaptcha()" style="max-width:160px">Refresh Captcha</button>
+    </div>
+    <input id="captchaInput" placeholder="Enter captcha shown above" />
+
+    <button onclick="checkResult()">Check Result</button>
+    <div class="msg" id="resultMsg"></div>
+    <div id="resultCard"></div>
+  </section>
+</div>
+
+<script>
+const MANAGER_USERNAME = "manager";
+const MANAGER_PASSWORD = "124421";
+const STORAGE_KEY = "hbce_students";
+let managerLoggedIn = false;
+let captchaCode = "";
+
+function setMsg(id, text){ document.getElementById(id).innerText = text; }
+function getStudents(){ return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") }
+function saveStudents(data){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) }
+
+function loginManager(){
+  const username = document.getElementById("managerUser").value.trim();
+  const password = document.getElementById("managerPass").value.trim();
+  managerLoggedIn = username === MANAGER_USERNAME && password === MANAGER_PASSWORD;
+  setMsg("loginMsg", managerLoggedIn ? "Manager login successful" : "Invalid manager credentials");
+  document.getElementById("managerPanel").classList.toggle("hidden", !managerLoggedIn);
+  if(managerLoggedIn) loadStudents();
+}
+
+function saveStudent(){
+  if(!managerLoggedIn){ setMsg("managerMsg", "Please login first."); return; }
+  const student = {
+    roll_no: document.getElementById("rollNo").value.trim(),
+    student_id: document.getElementById("studentId").value.trim(),
+    name: document.getElementById("studentName").value.trim(),
+    class_name: document.getElementById("className").value.trim(),
+    category: document.getElementById("category").value.trim(),
+    age_category: document.getElementById("ageCategory").value.trim(),
+    dob: document.getElementById("dob").value,
+    exam_marks: null
+  };
+
+  const required = ["roll_no","student_id","name","class_name","category","age_category","dob"];
+  const missing = required.filter(key => !student[key]);
+  if(missing.length){ setMsg("managerMsg", `Missing required fields: ${missing.join(", ")}`); return; }
+
+  const students = getStudents();
+  const existing = students[student.student_id];
+  if(existing && existing.exam_marks){ student.exam_marks = existing.exam_marks; }
+  students[student.student_id] = student;
+  saveStudents(students);
+  setMsg("managerMsg", "Student saved successfully");
+  loadStudents();
+}
+
+function publishMarks(){
+  if(!managerLoggedIn){ setMsg("managerMsg", "Please login first."); return; }
+  const studentId = document.getElementById("marksStudentId").value.trim();
+  const examMarks = document.getElementById("examMarks").value.trim();
+  if(!studentId || !examMarks){ setMsg("managerMsg", "Student ID and exam marks are required."); return; }
+
+  const students = getStudents();
+  if(!students[studentId]){ setMsg("managerMsg", "Student not found"); return; }
+  students[studentId].exam_marks = examMarks;
+  saveStudents(students);
+  setMsg("managerMsg", "Exam marks updated");
+  loadStudents();
+}
+
+function loadStudents(){
+  const students = Object.values(getStudents());
+  const tbody = document.getElementById("studentTable");
+  tbody.innerHTML = "";
+  students.forEach(s => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${s.roll_no}</td>
+      <td>${s.student_id}</td>
+      <td>${s.name}</td>
+      <td>${s.class_name}</td>
+      <td>${s.category}</td>
+      <td>${s.age_category}</td>
+      <td>${s.dob}</td>
+      <td>${s.exam_marks || "Not Published"}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function randomCaptcha(){
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for(let i=0;i<6;i++) out += chars[Math.floor(Math.random()*chars.length)];
+  return out;
+}
+
+function refreshCaptcha(){
+  captchaCode = randomCaptcha();
+  document.getElementById("captchaCode").innerText = captchaCode;
+}
+
+function checkResult(){
+  const studentId = document.getElementById("checkStudentId").value.trim();
+  const name = document.getElementById("checkName").value.trim().toLowerCase();
+  const className = document.getElementById("checkClass").value.trim().toLowerCase();
+  const dob = document.getElementById("checkDob").value;
+  const captchaInput = document.getElementById("captchaInput").value.trim().toUpperCase();
+
+  const required = [studentId, name, className, dob, captchaInput];
+  if(required.some(v => !v)){ setMsg("resultMsg", "Please fill all fields."); return; }
+  if(captchaInput !== captchaCode){ setMsg("resultMsg", "Invalid captcha"); document.getElementById("resultCard").innerHTML = ""; refreshCaptcha(); return; }
+
+  const student = getStudents()[studentId];
+  if(!student){ setMsg("resultMsg", "Student record not found"); document.getElementById("resultCard").innerHTML = ""; refreshCaptcha(); return; }
+
+  if(student.name.toLowerCase() !== name || student.class_name.toLowerCase() !== className || student.dob !== dob){
+    setMsg("resultMsg", "Details do not match records");
+    document.getElementById("resultCard").innerHTML = "";
+    refreshCaptcha();
+    return;
+  }
+
+  if(!student.exam_marks){ setMsg("resultMsg", "Result not published yet"); document.getElementById("resultCard").innerHTML = ""; refreshCaptcha(); return; }
+
+  setMsg("resultMsg", "Result found");
+  document.getElementById("resultCard").innerHTML = `
+    <div class="result-card">
+      <strong>${student.name}</strong><br>
+      Student ID: ${student.student_id}<br>
+      Roll No: ${student.roll_no}<br>
+      Class: ${student.class_name}<br>
+      Category: ${student.category}<br>
+      Age Category: ${student.age_category}<br>
+      DOB: ${student.dob}<br>
+      <strong>Exam Marks: ${student.exam_marks}</strong>
+    </div>
+  `;
+  refreshCaptcha();
+}
+
+function clearAllData(){
+  if(!managerLoggedIn){ setMsg("managerMsg", "Please login first."); return; }
+  localStorage.removeItem(STORAGE_KEY);
+  setMsg("managerMsg", "All student data cleared");
+  loadStudents();
+}
+
+refreshCaptcha();
+loadStudents();
+</script>
+</body>
+</html>
